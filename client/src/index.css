@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+/* ── Design Tokens from Stitch ── */
+@theme {
+  /* Colors - Material Design 3 palette */
+  --color-primary: #5416c9;
+  --color-primary-container: #6c3ce1;
+  --color-primary-fixed: #e8ddff;
+  --color-primary-fixed-dim: #cebdff;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #e2d6ff;
+  --color-on-primary-fixed: #21005e;
+  --color-on-primary-fixed-variant: #5110c6;
+  --color-inverse-primary: #cebdff;
+
+  --color-secondary: #7b5804;
+  --color-secondary-container: #fdcd74;
+  --color-secondary-fixed: #ffdea6;
+  --color-secondary-fixed-dim: #eec068;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #785601;
+  --color-on-secondary-fixed: #271900;
+  --color-on-secondary-fixed-variant: #5d4200;
+
+  --color-tertiary: #48475e;
+  --color-tertiary-container: #605f76;
+  --color-tertiary-fixed: #e2e0fc;
+  --color-tertiary-fixed-dim: #c6c4df;
+  --color-on-tertiary: #ffffff;
+  --color-on-tertiary-container: #dcdaf6;
+  --color-on-tertiary-fixed: #1a1a2e;
+  --color-on-tertiary-fixed-variant: #45455b;
+
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #93000a;
+
+  --color-surface: #f9f9f9;
+  --color-surface-bright: #f9f9f9;
+  --color-surface-dim: #dadada;
+  --color-surface-variant: #e2e2e2;
+  --color-surface-container: #eeeeee;
+  --color-surface-container-low: #f3f3f3;
+  --color-surface-container-high: #e8e8e8;
+  --color-surface-container-highest: #e2e2e2;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-tint: #6a39de;
+
+  --color-on-surface: #1a1c1c;
+  --color-on-surface-variant: #494455;
+  --color-on-background: #1a1c1c;
+  --color-background: #f9f9f9;
+
+  --color-outline: #7a7486;
+  --color-outline-variant: #cbc3d7;
+
+  --color-inverse-surface: #2f3131;
+  --color-inverse-on-surface: #f0f1f1;
+
+  /* Font families */
+  --font-display: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-headline: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-label: "Inter", system-ui, sans-serif;
+
+  /* Spacing */
+  --spacing-base: 8px;
+  --spacing-gutter: 16px;
+  --spacing-stack-sm: 12px;
+  --spacing-stack-md: 24px;
+  --spacing-stack-lg: 48px;
+  --spacing-container-mobile: 20px;
+  --spacing-container-desktop: 40px;
+}
+
+/* ── Custom Utility Classes ── */
+.royal-flow {
+  background: linear-gradient(135deg, #6c3ce1 0%, #5416c9 100%);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Material Symbols config */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Safe area for bottom nav on mobile */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
