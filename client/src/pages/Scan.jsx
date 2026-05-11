@@ -25,6 +25,7 @@ export default function Scan() {
   const [showHeightInput, setShowHeightInput] = useState(true)
   const [analyzing, setAnalyzing] = useState(false)
   const [poseDetected, setPoseDetected] = useState(false)
+  const [countdown, setCountdown] = useState(null) // null = not counting, 5..1 = counting
 
   // Initialize MediaPipe on mount
   useEffect(() => {
@@ -51,7 +52,26 @@ export default function Scan() {
     setPoseDetected(!!poseLandmarks)
   }, [poseLandmarks])
 
-  const handleCapture = useCallback(() => {
+  // Start the 5-second countdown when button is pressed
+  const handleCapturePress = useCallback(() => {
+    if (countdown !== null) return // already counting
+    setCountdown(5)
+  }, [countdown])
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (countdown === null) return
+    if (countdown === 0) {
+      // Timer done — actually capture
+      doCapture()
+      setCountdown(null)
+      return
+    }
+    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [countdown])
+
+  const doCapture = useCallback(() => {
     // Run one detection pass
     detect()
 
@@ -262,14 +282,44 @@ export default function Scan() {
         </div>
       )}
 
+      {/* Countdown overlay */}
+      {countdown !== null && countdown > 0 && (
+        <div className="absolute inset-0 z-35 flex items-center justify-center pointer-events-none">
+          <div className="relative">
+            {/* Circular progress ring */}
+            <svg className="w-40 h-40 -rotate-90" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="6" />
+              <circle
+                cx="60" cy="60" r="54" fill="none" stroke="#FDCD74" strokeWidth="6"
+                strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 54}`}
+                strokeDashoffset={`${2 * Math.PI * 54 * (1 - countdown / 5)}`}
+                style={{ transition: 'stroke-dashoffset 1s linear' }}
+              />
+            </svg>
+            {/* Number */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-white text-7xl font-bold font-display drop-shadow-[0_0_30px_rgba(253,205,116,0.6)]"
+                style={{ animation: 'pulse 1s ease-in-out' }} key={countdown}>
+                {countdown}
+              </span>
+            </div>
+          </div>
+          <p className="absolute bottom-[40%] text-white/80 text-lg font-semibold">Get into position...</p>
+        </div>
+      )}
+
       {/* Instruction card */}
       {!showHeightInput && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-80px)] max-w-md">
-          <div className="bg-on-surface/30 backdrop-blur-xl border border-white/10 p-4 rounded-xl text-center shadow-2xl">
+          <div className={`backdrop-blur-xl border border-white/10 p-4 rounded-xl text-center shadow-2xl ${countdown !== null ? 'bg-secondary/30' : 'bg-on-surface/30'}`}>
             <p className="font-headline text-xl font-semibold text-white mb-1">
-              Step {currentStep + 1}: {STEPS[currentStep]}
+              {countdown !== null
+                ? `Capturing in ${countdown}s...`
+                : `Step ${currentStep + 1}: ${STEPS[currentStep]}`}
             </p>
-            <p className="text-white/80 text-sm">{instructions[currentStep]}</p>
+            <p className="text-white/80 text-sm">
+              {countdown !== null ? 'Get into position!' : instructions[currentStep]}
+            </p>
           </div>
         </div>
       )}
@@ -297,13 +347,17 @@ export default function Scan() {
             <div className="w-12 h-12" /> {/* spacer */}
 
             <button
-              onClick={handleCapture}
-              disabled={mpLoading || analyzing}
+              onClick={handleCapturePress}
+              disabled={mpLoading || analyzing || countdown !== null}
               className="relative w-20 h-20 flex items-center justify-center group active:scale-90 transition-transform disabled:opacity-50"
             >
               <div className="absolute inset-0 rounded-full bg-white/20 scale-110" />
-              <div className="absolute inset-0 rounded-full royal-flow shadow-[0_0_30px_rgba(108,60,225,0.4)]" />
-              <div className="w-16 h-16 rounded-full border-4 border-white" />
+              <div className={`absolute inset-0 rounded-full shadow-[0_0_30px_rgba(108,60,225,0.4)] ${countdown !== null ? 'bg-secondary-container' : 'royal-flow'}`} />
+              <div className="w-16 h-16 rounded-full border-4 border-white flex items-center justify-center">
+                {countdown !== null ? (
+                  <span className="text-white text-2xl font-bold">{countdown || '...'}</span>
+                ) : null}
+              </div>
             </button>
 
             <button
