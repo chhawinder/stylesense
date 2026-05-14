@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useGoogleLogin } from '@react-oauth/google'
 import useAuthStore from '../store/authStore'
@@ -31,16 +32,26 @@ export default function Home() {
   const { user, loginWithGoogle, logout } = useAuthStore()
   const navigate = useNavigate()
 
-  const googleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      try {
-        await loginWithGoogle(tokenResponse.access_token)
-        navigate('/scan')
-      } catch (err) {
-        console.error('Google login failed:', err)
+  // Handle Google OAuth redirect callback (access_token in URL hash)
+  useEffect(() => {
+    const hash = window.location.hash
+    if (hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1))
+      const accessToken = params.get('access_token')
+      if (accessToken) {
+        // Clear the hash from URL
+        window.history.replaceState(null, '', window.location.pathname)
+        loginWithGoogle(accessToken)
+          .then(() => navigate('/scan'))
+          .catch((err) => console.error('Google login failed:', err))
       }
-    },
-    onError: () => console.error('Google login error'),
+    }
+  }, [])
+
+  const googleLogin = useGoogleLogin({
+    flow: 'implicit',
+    ux_mode: 'redirect',
+    redirect_uri: window.location.origin + '/',
   })
 
   return (
