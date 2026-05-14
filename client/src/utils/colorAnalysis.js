@@ -71,22 +71,114 @@ export function analyzeSkinTone(canvas, faceLandmarks) {
   else if (hue > 45 && hue <= 60) undertone = 'neutral'
   else undertone = 'neutral'
 
-  // Map to color season
-  const depth = luminance < 140 ? 'deep' : luminance < 180 ? 'medium' : 'light'
-  const seasonMap = {
-    warm_light: 'spring',
-    warm_medium: 'autumn',
-    warm_deep: 'autumn',
-    cool_light: 'summer',
-    cool_medium: 'winter',
-    cool_deep: 'winter',
-    neutral_light: 'spring',
-    neutral_medium: 'autumn',
-    neutral_deep: 'winter',
-  }
-  const season = seasonMap[`${undertone}_${depth}`] || 'autumn'
+  // Determine depth and chroma for 12-season system
+  const depth = luminance < 120 ? 'deep' : luminance < 155 ? 'medium_deep' : luminance < 185 ? 'medium_light' : 'light'
+  const chroma = sat > 0.5 ? 'bright' : sat > 0.3 ? 'true' : 'muted'
 
-  return { r: Math.round(r), g: Math.round(g), b: Math.round(b), fitzpatrick, undertone, season }
+  // 12-season color analysis
+  const season12 = classify12Season(undertone, depth, chroma)
+  // Simplified 4-season for backward compat
+  const season = season12.split('_').pop()
+
+  return {
+    r: Math.round(r), g: Math.round(g), b: Math.round(b),
+    fitzpatrick, undertone, season, season12,
+    depth, chroma,
+  }
+}
+
+/**
+ * 12-season color system.
+ * Combines undertone (warm/cool/neutral) with depth and chroma.
+ */
+function classify12Season(undertone, depth, chroma) {
+  if (undertone === 'warm') {
+    if (chroma === 'bright') return 'bright_spring'
+    if (depth === 'light' || depth === 'medium_light') return 'light_spring'
+    if (depth === 'deep' || depth === 'medium_deep') {
+      return chroma === 'muted' ? 'soft_autumn' : 'deep_autumn'
+    }
+    return 'warm_autumn'
+  }
+  if (undertone === 'cool') {
+    if (chroma === 'bright') return 'bright_winter'
+    if (depth === 'light' || depth === 'medium_light') return 'light_summer'
+    if (depth === 'deep' || depth === 'medium_deep') return 'deep_winter'
+    return 'cool_summer'
+  }
+  // neutral
+  if (depth === 'light' || depth === 'medium_light') {
+    return chroma === 'muted' ? 'soft_summer' : 'light_spring'
+  }
+  return chroma === 'muted' ? 'soft_autumn' : 'deep_autumn'
+}
+
+/**
+ * Analyze hair-to-skin contrast level.
+ * Samples pixels above the forehead (landmark 10) for hair color,
+ * compares luminance to skin color.
+ */
+export function analyzeHairSkinContrast(canvas, faceLandmarks) {
+  if (!faceLandmarks || faceLandmarks.length === 0) {
+    return { contrast: 'medium', hairLuminance: 0, skinLuminance: 0 }
+  }
+
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  const w = canvas.width
+  const h = canvas.height
+
+  // Sample hair: above forehead landmark 10
+  const foreheadX = Math.round(faceLandmarks[10].x * w)
+  const foreheadY = Math.round(faceLandmarks[10].y * h)
+  // Go ~30px above forehead for hair
+  const hairY = Math.max(5, foreheadY - 30)
+
+  let hairR = 0, hairG = 0, hairB = 0, hairCount = 0
+  for (let dx = -10; dx <= 10; dx += 2) {
+    for (let dy = -5; dy <= 5; dy += 2) {
+      const x = Math.max(0, Math.min(w - 1, foreheadX + dx))
+      const y = Math.max(0, Math.min(h - 1, hairY + dy))
+      const pixel = ctx.getImageData(x, y, 1, 1).data
+      hairR += pixel[0]; hairG += pixel[1]; hairB += pixel[2]
+      hairCount++
+    }
+  }
+
+  // Sample skin from cheeks (landmarks 101, 330)
+  let skinR = 0, skinG = 0, skinB = 0, skinCount = 0
+  for (const idx of [101, 330]) {
+    if (!faceLandmarks[idx]) continue
+    const px = Math.round(faceLandmarks[idx].x * w)
+    const py = Math.round(faceLandmarks[idx].y * h)
+    for (let dx = -3; dx <= 3; dx++) {
+      for (let dy = -3; dy <= 3; dy++) {
+        const x = Math.max(0, Math.min(w - 1, px + dx))
+        const y = Math.max(0, Math.min(h - 1, py + dy))
+        const pixel = ctx.getImageData(x, y, 1, 1).data
+        skinR += pixel[0]; skinG += pixel[1]; skinB += pixel[2]
+        skinCount++
+      }
+    }
+  }
+
+  if (hairCount === 0 || skinCount === 0) {
+    return { contrast: 'medium', hairLuminance: 0, skinLuminance: 0 }
+  }
+
+  const hairLum = 0.299 * (hairR / hairCount) + 0.587 * (hairG / hairCount) + 0.114 * (hairB / hairCount)
+  const skinLum = 0.299 * (skinR / skinCount) + 0.587 * (skinG / skinCount) + 0.114 * (skinB / skinCount)
+  const diff = Math.abs(skinLum - hairLum)
+
+  let contrast
+  if (diff > 80) contrast = 'high'
+  else if (diff > 40) contrast = 'medium'
+  else contrast = 'low'
+
+  return {
+    contrast,
+    hairLuminance: Math.round(hairLum),
+    skinLuminance: Math.round(skinLum),
+  }
 }
 
 function rgbToHsv(r, g, b) {

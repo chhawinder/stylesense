@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 500" fill="none">
+  <ellipse cx="100" cy="45" rx="28" ry="35" fill="#D4A574" opacity="0.3"/>
+  <rect x="90" y="75" width="20" height="20" rx="5" fill="#D4A574" opacity="0.3"/>
+  <!-- Inverted triangle: wide shoulders, narrow hips -->
+  <path d="M55 95 L145 95 L130 250 L70 250 Z" fill="#C4B5A0" opacity="0.2" stroke="#9E8E7E" stroke-width="1.5"/>
+  <path d="M55 95 L35 100 L25 200 L32 200 L40 110 L55 105" fill="#D4A574" opacity="0.2"/>
+  <path d="M145 95 L165 100 L175 200 L168 200 L160 110 L145 105" fill="#D4A574" opacity="0.2"/>
+  <path d="M74 250 L68 420 L61 460 L84 460 L82 420 L86 250" fill="#C4B5A0" opacity="0.2" stroke="#9E8E7E" stroke-width="1"/>
+  <path d="M114 250 L112 420 L119 460 L142 460 L135 420 L128 250" fill="#C4B5A0" opacity="0.2" stroke="#9E8E7E" stroke-width="1"/>
+  <line x1="50" y1="130" x2="150" y2="130" stroke="#6C3CE1" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.4"/>
+  <line x1="65" y1="240" x2="135" y2="240" stroke="#6C3CE1" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.4"/>
+</svg>

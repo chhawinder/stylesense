@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
-from jose import jwt
+from fastapi import APIRouter, Depends, HTTPException, Header
+from jose import jwt, JWTError
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -26,26 +26,48 @@ def create_access_token(user_id: str) -> str:
     return jwt.encode({"sub": user_id, "exp": expire}, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-def get_current_user(db: Session = Depends(get_db)):
-    """Dependency placeholder — will be wired up with actual JWT validation."""
-    # For MVP, this will validate the Authorization header
-    # For now, return None (unauthenticated)
-    return None
+def get_current_user(authorization: str = Header(None), db: Session = Depends(get_db)) -> User:
+    """Validate JWT from Authorization header and return the current user."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = authorization.split(" ", 1)[1]
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
 
 
 @router.post("/google", response_model=TokenResponse)
 async def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
-    """Verify Google ID token and create/return user."""
+    """Verify Google ID token or OAuth2 access token and create/return user."""
     import httpx
 
-    # Verify the Google token
     async with httpx.AsyncClient() as client:
-        resp = await client.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={req.token}")
-        if resp.status_code != 200:
-            raise HTTPException(status_code=401, detail="Invalid Google token")
-        payload = resp.json()
+        if req.token.count(".") >= 2:
+            # JWT ID token (from GoogleLogin component)
+            resp = await client.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={req.token}")
+            if resp.status_code != 200:
+                raise HTTPException(status_code=401, detail="Invalid Google token")
+            payload = resp.json()
+            google_id = payload.get("sub")
+        else:
+            # OAuth2 access token (from useGoogleLogin)
+            resp = await client.get(
+                "https://www.googleapis.com/oauth2/v2/userinfo",
+                headers={"Authorization": f"Bearer {req.token}"},
+            )
+            if resp.status_code != 200:
+                raise HTTPException(status_code=401, detail="Invalid Google token")
+            payload = resp.json()
+            google_id = payload.get("id")
 
-    google_id = payload.get("sub")
     email = payload.get("email")
     name = payload.get("name", "")
     avatar = payload.get("picture", "")
@@ -74,7 +96,6 @@ async def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/me")
-async def get_me(db: Session = Depends(get_db)):
+async def get_me(user: User = Depends(get_current_user)):
     """Get current authenticated user."""
-    # TODO: wire up JWT auth dependency
-    return {"message": "Auth endpoint ready"}
+    return {"id": user.id, "email": user.email, "name": user.name, "avatar": user.avatar}

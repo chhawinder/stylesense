@@ -28,6 +28,9 @@ export const api = {
   listRecommendations: () => request('/api/recommendations'),
   getFashionRules: () => request('/api/recommendations/rules'),
 
+  // Ensembles
+  getEnsembles: (params) => request('/api/ensembles', { method: 'POST', body: JSON.stringify(params) }),
+
   // Products
   searchProducts: (q, category) => request(`/api/products/search?q=${q}&category=${category}`),
   trackClick: (productId, recId) => request('/api/products/click', {

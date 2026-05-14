@@ -27,5 +27,18 @@ class BodyProfile(Base):
     face_shape = Column(String)  # oval, round, square, heart, oblong, diamond
     gender = Column(String)
 
+    # Enhanced analysis fields
+    color_season_12 = Column(String)  # 12-season color e.g. bright_spring, deep_autumn
+    torso_leg_ratio = Column(Float)
+    torso_leg_type = Column(String)  # long_torso, long_legs, balanced
+    arm_length = Column(String)  # long, short, average
+    kibbe_type = Column(String)  # dramatic, natural, classic, gamine, romantic
+    posture = Column(String)  # normal, slight_forward, forward_head
+    posture_forward_head_deg = Column(Float)
+    hair_skin_contrast = Column(String)  # high, medium, low
+    eye_spacing = Column(String)  # wide, close, average
+    nose_bridge = Column(String)  # wide, narrow, medium
+    glasses_recommendation = Column(String)
+
     is_active = Column(Boolean, default=True)
     scanned_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

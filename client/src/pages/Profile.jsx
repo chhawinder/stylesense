@@ -20,6 +20,14 @@ const FACE_DESCRIPTIONS = {
   diamond: 'Wide cheekbones with narrow forehead and jaw. Off-shoulder tops highlight your structure.',
 }
 
+const KIBBE_DESCRIPTIONS = {
+  dramatic: 'Sharp, angular bone structure with elongated lines. You look best in bold, structured clothing with clean geometric lines — think tailored blazers, column dresses, and monochromatic outfits.',
+  natural: 'Broad, blunt bone structure with a relaxed silhouette. Loose, flowing fabrics and layered looks suit you best — oversized blazers, wrap dresses, and natural textures.',
+  classic: 'Balanced, symmetrical features with moderate proportions. Timeless, well-fitted pieces are your strength — structured blouses, A-line skirts, and classic tailoring.',
+  gamine: 'Compact frame with a mix of sharp and soft features. Playful, cropped, and fitted styles work wonderfully — short jackets, fitted pants, and color-blocked outfits.',
+  romantic: 'Soft, rounded bone structure with curves. Draped, flowing fabrics that follow your curves look stunning — wrap tops, peplum blouses, and soft skirts.',
+}
+
 const SEASON_PALETTES = {
   spring: [
     { color: '#FFDAB9', name: 'Peach' }, { color: '#FF7F50', name: 'Coral' },
@@ -200,12 +208,118 @@ export default function Profile() {
             </p>
           </div>
         </div>
+
+        {/* Body Proportions */}
+        <div className="glass-card p-6 rounded-xl shadow-[0_10px_20px_rgba(108,60,225,0.08)] hover:scale-[1.02] transition-all">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h3 className="font-label text-sm font-semibold text-on-surface-variant uppercase mb-1">Body Proportions</h3>
+              <p className="font-headline text-2xl font-semibold text-on-surface capitalize">
+                {(profile.torso_leg_type || 'balanced').replace('_', ' ')}
+              </p>
+            </div>
+            <div className="p-3 rounded-full bg-primary-fixed text-primary">
+              <span className="material-symbols-outlined">accessibility_new</span>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {[
+              ['Torso-Leg Ratio', profile.torso_leg_ratio ? `${profile.torso_leg_ratio}` : '—',
+                profile.torso_leg_type === 'long_torso' ? 'High-waisted bottoms elongate your legs'
+                : profile.torso_leg_type === 'long_legs' ? 'Tucked-in tops show off your long legs'
+                : 'Balanced proportions — most styles work great'],
+              ['Arm Length', (profile.arm_length || 'average').replace('_', ' '),
+                profile.arm_length === 'long' ? 'Full-length sleeves and bracelets look great'
+                : profile.arm_length === 'short' ? '3/4 sleeves or rolled cuffs are ideal'
+                : 'Standard sleeve lengths fit well'],
+              ['Posture', (profile.posture || 'normal').replace('_', ' '),
+                profile.posture === 'forward_head' ? 'V-necks and open collars help balance posture'
+                : profile.posture === 'slight_forward' ? 'Structured shoulders add visual alignment'
+                : 'Great posture — all necklines work'],
+            ].map(([label, val, tip]) => (
+              <div key={label} className="border-b border-outline-variant/30 pb-2 last:border-0">
+                <div className="flex justify-between mb-0.5">
+                  <span className="text-on-surface-variant">{label}</span>
+                  <span className="font-semibold capitalize">{val}</span>
+                </div>
+                <p className="text-xs text-on-surface-variant/70 italic">{tip}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Kibbe Body Type */}
+        <div className="glass-card p-6 rounded-xl shadow-[0_10px_20px_rgba(108,60,225,0.08)] hover:scale-[1.02] transition-all">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h3 className="font-label text-sm font-semibold text-on-surface-variant uppercase mb-1">Style Archetype</h3>
+              <p className="font-headline text-2xl font-semibold text-on-surface capitalize">{profile.kibbe_type || 'Classic'}</p>
+            </div>
+            <div className="p-3 rounded-full bg-secondary-fixed text-secondary">
+              <span className="material-symbols-outlined">style</span>
+            </div>
+          </div>
+          <p className="text-on-surface-variant">
+            {KIBBE_DESCRIPTIONS[profile.kibbe_type] || KIBBE_DESCRIPTIONS.classic}
+          </p>
+        </div>
+
+        {/* Eyewear & Glasses */}
+        {profile.glasses_recommendation && (
+          <div className="glass-card p-6 rounded-xl shadow-[0_10px_20px_rgba(108,60,225,0.08)] hover:scale-[1.02] transition-all">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h3 className="font-label text-sm font-semibold text-on-surface-variant uppercase mb-1">Eyewear Guide</h3>
+                <p className="font-headline text-2xl font-semibold text-on-surface capitalize">
+                  {profile.eye_spacing || 'Average'} Set Eyes
+                </p>
+              </div>
+              <div className="p-3 rounded-full bg-tertiary-fixed text-tertiary">
+                <span className="material-symbols-outlined">visibility</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between border-b border-outline-variant/30 pb-2">
+                <span className="text-on-surface-variant">Nose Bridge</span>
+                <span className="font-semibold capitalize">{profile.nose_bridge || 'Medium'}</span>
+              </div>
+              <p className="text-on-surface-variant text-sm">{profile.glasses_recommendation}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Hair-Skin Contrast */}
+        <div className="glass-card p-6 rounded-xl shadow-[0_10px_20px_rgba(108,60,225,0.08)] hover:scale-[1.02] transition-all">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h3 className="font-label text-sm font-semibold text-on-surface-variant uppercase mb-1">Color Contrast</h3>
+              <p className="font-headline text-2xl font-semibold text-on-surface capitalize">
+                {profile.hair_skin_contrast || 'Medium'} Contrast
+              </p>
+            </div>
+            <div className="p-3 rounded-full bg-surface-container-high text-on-surface">
+              <span className="material-symbols-outlined">contrast</span>
+            </div>
+          </div>
+          <p className="text-on-surface-variant">
+            {profile.hair_skin_contrast === 'high'
+              ? 'Bold, contrasting outfits suit you — try black-and-white combos, jewel tones, and sharp color blocking.'
+              : profile.hair_skin_contrast === 'low'
+              ? 'Tonal, monochromatic dressing looks harmonious on you — layer similar shades for an elegant effect.'
+              : 'You can wear both tonal outfits and moderate contrast. Avoid extreme contrasts for a polished look.'}
+          </p>
+          {profile.color_season_12 && (
+            <p className="mt-3 text-xs text-on-surface-variant/70 italic">
+              12-season analysis: {profile.color_season_12.replace('_', ' ')}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* CTA */}
       <div className="mt-12 flex flex-col items-center">
         <Link
-          to="/preferences"
+          to="/recommendations"
           className="royal-flow text-white px-8 py-4 rounded-full font-headline text-2xl font-semibold shadow-xl flex items-center gap-3 active:scale-95 transition-all group"
         >
           See My Recommendations

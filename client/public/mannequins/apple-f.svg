@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 500" fill="none">
+  <ellipse cx="100" cy="45" rx="28" ry="35" fill="#D4A574" opacity="0.3"/>
+  <rect x="90" y="75" width="20" height="20" rx="5" fill="#D4A574" opacity="0.3"/>
+  <!-- Apple: fuller midsection -->
+  <path d="M62 95 L138 95 L148 170 L140 250 L60 250 L52 170 Z" fill="#C4B5A0" opacity="0.2" stroke="#9E8E7E" stroke-width="1.5"/>
+  <path d="M62 95 L42 100 L32 200 L39 200 L47 110 L62 105" fill="#D4A574" opacity="0.2"/>
+  <path d="M138 95 L158 100 L168 200 L161 200 L153 110 L138 105" fill="#D4A574" opacity="0.2"/>
+  <path d="M66 250 L60 420 L53 460 L76 460 L74 420 L80 250" fill="#C4B5A0" opacity="0.2" stroke="#9E8E7E" stroke-width="1"/>
+  <path d="M120 250 L116 420 L123 460 L146 460 L140 420 L134 250" fill="#C4B5A0" opacity="0.2" stroke="#9E8E7E" stroke-width="1"/>
+  <line x1="48" y1="170" x2="152" y2="170" stroke="#6C3CE1" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.4"/>
+  <line x1="55" y1="240" x2="145" y2="240" stroke="#6C3CE1" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.4"/>
+</svg>

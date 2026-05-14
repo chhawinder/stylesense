@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 500" fill="none">
+  <ellipse cx="100" cy="45" rx="28" ry="35" fill="#D4A574" opacity="0.3"/>
+  <rect x="90" y="75" width="20" height="20" rx="5" fill="#D4A574" opacity="0.3"/>
+  <!-- Pear: narrow shoulders, wider hips -->
+  <path d="M70 95 L130 95 L145 250 L55 250 Z" fill="#C4B5A0" opacity="0.2" stroke="#9E8E7E" stroke-width="1.5"/>
+  <path d="M70 95 L50 100 L40 200 L47 200 L55 110 L70 105" fill="#D4A574" opacity="0.2"/>
+  <path d="M130 95 L150 100 L160 200 L153 200 L145 110 L130 105" fill="#D4A574" opacity="0.2"/>
+  <path d="M62 250 L55 420 L48 460 L71 460 L70 420 L76 250" fill="#C4B5A0" opacity="0.2" stroke="#9E8E7E" stroke-width="1"/>
+  <path d="M124 250 L122 420 L129 460 L152 460 L145 420 L138 250" fill="#C4B5A0" opacity="0.2" stroke="#9E8E7E" stroke-width="1"/>
+  <line x1="65" y1="130" x2="135" y2="130" stroke="#6C3CE1" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.4"/>
+  <line x1="55" y1="240" x2="145" y2="240" stroke="#6C3CE1" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.4"/>
+</svg>

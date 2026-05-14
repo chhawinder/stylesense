@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 500" fill="none">
+  <!-- Head -->
+  <ellipse cx="100" cy="45" rx="28" ry="35" fill="#D4A574" opacity="0.3"/>
+  <!-- Neck -->
+  <rect x="90" y="75" width="20" height="20" rx="5" fill="#D4A574" opacity="0.3"/>
+  <!-- Torso -->
+  <path d="M65 95 L135 95 L138 250 L62 250 Z" fill="#C4B5A0" opacity="0.2" stroke="#9E8E7E" stroke-width="1.5"/>
+  <!-- Left arm -->
+  <path d="M65 95 L45 100 L35 200 L42 200 L50 110 L65 105" fill="#D4A574" opacity="0.2"/>
+  <!-- Right arm -->
+  <path d="M135 95 L155 100 L165 200 L158 200 L150 110 L135 105" fill="#D4A574" opacity="0.2"/>
+  <!-- Left leg -->
+  <path d="M68 250 L62 420 L55 460 L78 460 L75 420 L82 250" fill="#C4B5A0" opacity="0.2" stroke="#9E8E7E" stroke-width="1"/>
+  <!-- Right leg -->
+  <path d="M118 250 L115 420 L122 460 L145 460 L138 420 L132 250" fill="#C4B5A0" opacity="0.2" stroke="#9E8E7E" stroke-width="1"/>
+  <!-- Size markers -->
+  <line x1="55" y1="130" x2="145" y2="130" stroke="#6C3CE1" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.4"/>
+  <line x1="55" y1="180" x2="145" y2="180" stroke="#6C3CE1" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.4"/>
+  <line x1="55" y1="240" x2="145" y2="240" stroke="#6C3CE1" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.4"/>
+</svg>

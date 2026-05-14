@@ -5,16 +5,17 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.body_profile import BodyProfile
+from app.models.user import User
 from app.schemas.body import BodyScanResult, BodyProfileResponse
+from app.api.auth import get_current_user
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
 
 @router.post("/body", response_model=BodyProfileResponse)
-async def save_body_profile(scan: BodyScanResult, db: Session = Depends(get_db)):
+async def save_body_profile(scan: BodyScanResult, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Save body scan results from client-side MediaPipe analysis."""
-    # TODO: get user_id from auth
-    user_id = "demo-user"
+    user_id = user.id
 
     # Deactivate previous profiles
     db.query(BodyProfile).filter(
@@ -29,12 +30,11 @@ async def save_body_profile(scan: BodyScanResult, db: Session = Depends(get_db))
 
 
 @router.get("/body", response_model=Optional[BodyProfileResponse])
-async def get_body_profile(db: Session = Depends(get_db)):
+async def get_body_profile(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get the active body profile for the current user."""
-    user_id = "demo-user"
     profile = (
         db.query(BodyProfile)
-        .filter(BodyProfile.user_id == user_id, BodyProfile.is_active == True)
+        .filter(BodyProfile.user_id == user.id, BodyProfile.is_active == True)
         .first()
     )
     if not profile:
@@ -43,9 +43,9 @@ async def get_body_profile(db: Session = Depends(get_db)):
 
 
 @router.delete("/body/{profile_id}")
-async def delete_body_profile(profile_id: str, db: Session = Depends(get_db)):
+async def delete_body_profile(profile_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Delete a body profile (DPDP Act compliance — right to erasure)."""
-    profile = db.query(BodyProfile).filter(BodyProfile.id == profile_id).first()
+    profile = db.query(BodyProfile).filter(BodyProfile.id == profile_id, BodyProfile.user_id == user.id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
     db.delete(profile)

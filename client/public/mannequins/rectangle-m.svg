@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 500" fill="none">
+  <ellipse cx="100" cy="42" rx="26" ry="32" fill="#C4A882" opacity="0.3"/>
+  <rect x="91" y="70" width="18" height="22" rx="4" fill="#C4A882" opacity="0.3"/>
+  <!-- Male rectangle: broad shoulders, straight torso -->
+  <path d="M55 92 L145 92 L142 250 L58 250 Z" fill="#B8A88E" opacity="0.2" stroke="#8E7E6E" stroke-width="1.5"/>
+  <path d="M55 92 L32 98 L22 205 L30 205 L38 108 L55 102" fill="#C4A882" opacity="0.2"/>
+  <path d="M145 92 L168 98 L178 205 L170 205 L162 108 L145 102" fill="#C4A882" opacity="0.2"/>
+  <path d="M64 250 L58 420 L52 460 L78 460 L76 420 L82 250" fill="#B8A88E" opacity="0.2" stroke="#8E7E6E" stroke-width="1"/>
+  <path d="M118 250 L115 420 L122 460 L148 460 L142 420 L136 250" fill="#B8A88E" opacity="0.2" stroke="#8E7E6E" stroke-width="1"/>
+  <line x1="50" y1="130" x2="150" y2="130" stroke="#6C3CE1" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.4"/>
+  <line x1="55" y1="180" x2="145" y2="180" stroke="#6C3CE1" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.4"/>
+  <line x1="55" y1="240" x2="145" y2="240" stroke="#6C3CE1" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.4"/>
+</svg>
