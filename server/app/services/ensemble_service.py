@@ -136,51 +136,56 @@ def _generate_ensemble_plans(
     try:
         import httpx
 
-        prompt = f"""You are an expert Indian fashion stylist. Create 3 complete outfit ensembles for this person. Each ensemble should be a cohesive look — items that go together perfectly.
+        occasion_label = (occasion or "casual").replace("_", " ").title()
 
-USER PROFILE:
-- Body Shape: {body_shape}
+        prompt = f"""You are a top-tier Indian fashion stylist with deep knowledge of Indian body types, skin tones, and fashion. Create 3 COMPLETE, STUNNING outfit ensembles specifically for the "{occasion_label}" occasion.
+
+PERSON'S PROFILE:
+- Body: {body_shape} shape, {height_cm}cm tall, size {predicted_size}
+- Skin: {skin_undertone} undertone, {color_season} color season
+- Style type: {kibbe_type or 'classic'} (Kibbe), {face_shape} face
 - Gender: {gender}
-- Size: {predicted_size} (Indian sizing)
-- Height: {height_cm} cm
-- Skin Tone: {skin_undertone} undertone, {color_season} color season
-- Style Archetype (Kibbe): {kibbe_type or 'classic'}
-- Face Shape: {face_shape}
-- Occasion: {occasion or "casual everyday"}
-- Budget per ensemble: ₹{budget_min} - ₹{budget_max}
 
-STYLE RULES FOR THIS BODY TYPE:
-- Best silhouettes: {", ".join(rules["best_styles"][:5])}
-- Best colors: {", ".join(rules["best_colors"][:5])}
-- Indian styles: {", ".join(rules["indian_styles"][:3])}
-- Avoid: {", ".join(rules["avoid_styles"][:3])}
-- Best necklines: {", ".join(rules["necklines"][:3])}
+WHAT FLATTERS THEM:
+- Silhouettes: {", ".join(rules["best_styles"][:5])}
+- Colors: {", ".join(rules["best_colors"][:6])}
+- Indian wear: {", ".join(rules["indian_styles"][:4])}
+- Necklines: {", ".join(rules["necklines"][:3])}
+- AVOID: {", ".join(rules["avoid_styles"][:4])}
 
-Create 3 ensembles. Each ensemble must have:
-1. A creative name (e.g. "Golden Hour Casual", "Power Meeting", "Festive Glow")
-2. A style_score from 88-99 reflecting how well it suits THIS specific user
-3. A 2-3 sentence description explaining WHY this ensemble works for their body shape, proportions, and coloring — be specific about how each piece flatters them
-4. Exactly 3-4 items that form a complete outfit
+OCCASION CONTEXT — "{occasion_label}":
+{"- Casual: relaxed everyday looks, comfortable fabrics, can be playful. Think brunch, mall, friends hangout." if "casual" in occasion else ""}{"- Office: professional yet stylish, structured pieces, muted or smart colors. Think boardroom, client meeting." if "office" in occasion else ""}{"- Party: bold, glamorous, statement pieces. Think club night, house party, cocktail event." if "party" in occasion else ""}{"- Wedding: opulent Indian wear, heavy embroidery, rich fabrics. Think baarat, reception, sangeet." if "wedding" in occasion else ""}{"- Festive: celebratory Indian wear, bright colors, moderate embellishment. Think Diwali, Eid, Navratri." if "festive" in occasion else ""}{"- Date Night: romantic, well-put-together, slightly sexy but classy. Think dinner date, rooftop bar." if "date" in occasion else ""}
 
-For each item, provide:
-- category: one of [top, bottom, dress, kurta, blazer, shoes, accessory, saree]
-- style_notes: brief description (e.g. "Mustard A-line cotton kurta with mandarin collar")
-- color: the specific color
-- search_query: exact search string for Amazon.in/Flipkart (e.g. "women mustard A-line cotton kurta mandarin collar")
+RULES:
+1. Each ensemble MUST have 4 items: main piece + complementary piece + footwear + accessory
+2. All 3 ensembles must look COMPLETELY DIFFERENT from each other — different colors, different styles, different vibes
+3. Ensemble 1: Contemporary/Western-inspired look for this occasion
+4. Ensemble 2: Indian/Fusion look for this occasion
+5. Ensemble 3: Bold/Experimental take on this occasion (push boundaries)
+6. search_query must be an actual Amazon.in/Flipkart search (include "{gender}", color, fabric, style)
+7. Colors MUST come from the person's recommended palette above
+8. Budget: ₹{budget_min}-₹{budget_max} per ensemble
 
-Make the 3 ensembles distinct: one can be a mix of western+Indian, one fully Indian, one more contemporary. Ensure colors and styles are personalized to the user's profile.
-
-Return ONLY a JSON array of 3 ensemble objects. No markdown."""
+Return a JSON array of exactly 3 objects with this structure:
+[
+  {{
+    "name": "Creative Ensemble Name",
+    "style_score": 92,
+    "description": "2 sentences explaining WHY this works for their {body_shape} body, {skin_undertone} skin, and the {occasion_label} occasion.",
+    "items": [
+      {{"category": "top|bottom|dress|kurta|blazer|shoes|accessory|saree", "style_notes": "Specific description", "color": "exact color", "search_query": "{gender} color style item fabric on Amazon India"}}
+    ]
+  }}
+]"""
 
         resp = httpx.post(
             f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}",
             json={
                 "contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {
-                    "temperature": 0.85,
-                    "maxOutputTokens": 3000,
+                    "temperature": 0.9,
+                    "maxOutputTokens": 5000,
                     "responseMimeType": "application/json",
-                    "thinkingConfig": {"thinkingBudget": 0},
                 },
             },
             timeout=30,
