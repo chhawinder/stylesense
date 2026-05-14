@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import useProfileStore from '../store/profileStore'
 
+const API_BASE = import.meta.env.VITE_API_URL || ''
+
 const OCCASIONS = ['Casual', 'Office', 'Party', 'Wedding', 'Festive', 'Date Night']
 const CATEGORIES = ['All', 'Top', 'Bottom', 'Dress', 'Kurta', 'Saree', 'Blazer', 'Shoes', 'Accessory']
 
@@ -59,7 +61,7 @@ export default function Recommendations() {
     setHasMore(false)
 
     try {
-      const res = await fetch('/api/recommendations', {
+      const res = await fetch(`${API_BASE}/api/recommendations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildRequest(0, [])),
@@ -85,7 +87,7 @@ export default function Recommendations() {
     setLoadingMore(true)
 
     try {
-      const res = await fetch('/api/recommendations', {
+      const res = await fetch(`${API_BASE}/api/recommendations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildRequest(page, pendingQueries)),
