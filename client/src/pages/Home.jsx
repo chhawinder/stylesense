@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useGoogleLogin } from '@react-oauth/google'
 import useAuthStore from '../store/authStore'
 
 const features = [
@@ -39,7 +38,6 @@ export default function Home() {
       const params = new URLSearchParams(hash.substring(1))
       const accessToken = params.get('access_token')
       if (accessToken) {
-        // Clear the hash from URL
         window.history.replaceState(null, '', window.location.pathname)
         loginWithGoogle(accessToken)
           .then(() => navigate('/scan'))
@@ -48,11 +46,12 @@ export default function Home() {
     }
   }, [])
 
-  const googleLogin = useGoogleLogin({
-    flow: 'implicit',
-    ux_mode: 'redirect',
-    redirect_uri: window.location.origin + '/',
-  })
+  const googleLogin = () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+    const redirectUri = window.location.origin + '/'
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent('openid email profile')}`
+    window.location.href = url
+  }
 
   return (
     <main className="pt-24 pb-12">
