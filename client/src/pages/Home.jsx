@@ -109,7 +109,7 @@ export default function Home() {
               key={f.title}
               className="group relative overflow-hidden rounded-xl h-[400px] shadow-sm hover:shadow-xl transition-all hover:scale-[1.02]"
             >
-              <img src={f.img} alt={f.title} className="w-full h-full object-cover" />
+              <img src={f.img} alt={f.title} loading="lazy" className="w-full h-full object-cover" />
               <div className="absolute bottom-0 left-0 w-full glass-card p-6">
                 <h3 className="font-headline text-2xl font-semibold text-on-surface mb-1">{f.title}</h3>
                 <p className="text-on-surface-variant">{f.desc}</p>

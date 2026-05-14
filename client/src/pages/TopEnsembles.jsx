@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import useProfileStore from '../store/profileStore'
 import useAuthStore from '../store/authStore'
@@ -28,6 +28,7 @@ export default function TopEnsembles() {
   const [error, setError] = useState(null)
   const [occasion, setOccasion] = useState('Casual')
   const [expandedEnsemble, setExpandedEnsemble] = useState(0)
+  const cacheRef = useRef({})
 
   useEffect(() => {
     if (!profile) loadProfile()
@@ -35,6 +36,15 @@ export default function TopEnsembles() {
 
   const fetchEnsembles = useCallback(async () => {
     if (!profile) return
+    const key = occasion.toLowerCase().replace(' ', '_')
+
+    // Serve from cache instantly
+    if (cacheRef.current[key]) {
+      setEnsembles(cacheRef.current[key])
+      setExpandedEnsemble(0)
+      return
+    }
+
     setLoading(true)
     setError(null)
     try {
@@ -47,12 +57,14 @@ export default function TopEnsembles() {
         predicted_size: profile.predicted_size || 'M',
         kibbe_type: profile.kibbe_type,
         height_cm: profile.height_cm,
-        occasion: occasion.toLowerCase().replace(' ', '_'),
+        occasion: key,
         budget_min: 500,
         budget_max: 15000,
       })
-      setEnsembles(data.ensembles || [])
+      const result = data.ensembles || []
+      setEnsembles(result)
       setExpandedEnsemble(0)
+      cacheRef.current[key] = result
     } catch (err) {
       setError(err.message)
     }
@@ -107,12 +119,32 @@ export default function TopEnsembles() {
         ))}
       </div>
 
-      {/* Loading state */}
+      {/* Skeleton loading */}
       {loading && (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-          <p className="text-on-surface font-headline text-lg font-semibold">Styling your outfits...</p>
-          <p className="text-on-surface-variant text-sm mt-1">Our AI is curating the perfect looks for you</p>
+        <div className="space-y-10">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="animate-pulse grid grid-cols-1 lg:grid-cols-12 gap-0 bg-surface-container-lowest rounded-3xl overflow-hidden border border-outline-variant/20">
+              <div className="lg:col-span-5 bg-surface-container-high h-[300px] lg:h-[500px]" />
+              <div className="lg:col-span-7 p-6 md:p-10 space-y-4">
+                <div className="h-3 bg-surface-container-high rounded w-24" />
+                <div className="h-8 bg-surface-container-high rounded w-2/3" />
+                <div className="h-4 bg-surface-container-high rounded w-full" />
+                <div className="h-4 bg-surface-container-high rounded w-4/5" />
+                <div className="space-y-3 mt-6">
+                  {[1, 2, 3].map((j) => (
+                    <div key={j} className="flex items-center gap-4 p-4 rounded-xl border border-outline-variant/20">
+                      <div className="w-16 h-16 bg-surface-container-high rounded-lg flex-shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 bg-surface-container-high rounded w-3/4" />
+                        <div className="h-3 bg-surface-container-high rounded w-1/3" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="h-12 bg-surface-container-high rounded-xl w-48 mt-4" />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

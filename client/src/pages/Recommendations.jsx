@@ -30,6 +30,9 @@ export default function Recommendations() {
 
   // Infinite scroll sentinel
   const sentinelRef = useRef(null)
+  // Cache: occasion → { products, styleRules, styleTip, source, hasMore, pendingQueries }
+  const cacheRef = useRef({})
+  const abortRef = useRef(null)
 
   useEffect(() => {
     if (!profile) loadProfile()
@@ -50,9 +53,30 @@ export default function Recommendations() {
     pending_queries: queries || [],
   }), [profile, occasion, budgetMin, budgetMax])
 
-  // Initial fetch (page 0)
+  // Initial fetch (page 0) with caching
   const fetchInitial = useCallback(async () => {
     if (!profile) return
+    const cacheKey = `${occasion}_${budgetMin}_${budgetMax}`
+
+    // Serve from cache instantly
+    if (cacheRef.current[cacheKey]) {
+      const c = cacheRef.current[cacheKey]
+      setProducts(c.products)
+      setStyleRules(c.styleRules)
+      setStyleTip(c.styleTip)
+      setSource(c.source)
+      setHasMore(c.hasMore)
+      setPendingQueries(c.pendingQueries)
+      setPage(c.page)
+      setLoading(false)
+      return
+    }
+
+    // Abort previous in-flight request
+    if (abortRef.current) abortRef.current.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
     setLoading(true)
     setError(null)
     setProducts([])
@@ -65,21 +89,34 @@ export default function Recommendations() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildRequest(0, [])),
+        signal: controller.signal,
       })
       if (!res.ok) throw new Error('Failed to fetch recommendations')
       const data = await res.json()
-      setProducts(data.products || [])
-      if (data.style_rules) setStyleRules(data.style_rules)
-      if (data.style_tip) setStyleTip(data.style_tip)
-      setSource(data.source || 'rules')
-      setHasMore(data.has_more || false)
-      setPendingQueries(data.pending_queries || [])
+      const result = {
+        products: data.products || [],
+        styleRules: data.style_rules || null,
+        styleTip: data.style_tip || '',
+        source: data.source || 'rules',
+        hasMore: data.has_more || false,
+        pendingQueries: data.pending_queries || [],
+        page: 1,
+      }
+      // Update state
+      setProducts(result.products)
+      if (result.styleRules) setStyleRules(result.styleRules)
+      if (result.styleTip) setStyleTip(result.styleTip)
+      setSource(result.source)
+      setHasMore(result.hasMore)
+      setPendingQueries(result.pendingQueries)
       setPage(1)
+      // Store in cache
+      cacheRef.current[cacheKey] = result
     } catch (err) {
-      setError(err.message)
+      if (err.name !== 'AbortError') setError(err.message)
     }
     setLoading(false)
-  }, [profile, buildRequest])
+  }, [profile, buildRequest, occasion, budgetMin, budgetMax])
 
   // Load more (page 1+)
   const fetchMore = useCallback(async () => {
@@ -276,11 +313,22 @@ export default function Recommendations() {
         </section>
       )}
 
-      {/* Initial loading */}
+      {/* Skeleton loading */}
       {loading && (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-          <p className="text-on-surface-variant font-label">Finding products for {occasion.toLowerCase()} wear...</p>
+        <div>
+          <p className="text-on-surface-variant font-label mb-4 animate-pulse">Finding products for {occasion.toLowerCase()} wear...</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="animate-pulse rounded-2xl overflow-hidden border border-outline-variant/30">
+                <div className="bg-surface-container-high h-60 md:h-72" />
+                <div className="p-3 space-y-2">
+                  <div className="h-3 bg-surface-container-high rounded w-3/4" />
+                  <div className="h-3 bg-surface-container-high rounded w-1/2" />
+                  <div className="h-4 bg-surface-container-high rounded w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
