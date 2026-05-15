@@ -10,6 +10,7 @@ from typing import List, Dict
 
 from app.services.fashion_rules import get_style_rules
 from app.services.product_search import search_products_batch
+from app.services.cache import get as cache_get, put as cache_put
 
 
 # ── Mannequin image mapping (SVG placeholders per body shape x gender) ──
@@ -48,6 +49,17 @@ async def generate_ensembles(
     budget_min: int, budget_max: int,
 ) -> Dict:
     """Generate 3 complete outfit ensembles with real product matches."""
+
+    # Check cache (keyed on profile + occasion)
+    cache_params = {
+        "body": body_shape, "skin": skin_undertone, "season": color_season,
+        "face": face_shape, "gender": gender, "size": predicted_size,
+        "kibbe": kibbe_type, "occasion": occasion,
+        "bmin": budget_min, "bmax": budget_max,
+    }
+    cached = cache_get("ensembles", cache_params)
+    if cached is not None:
+        return cached
 
     rules = get_style_rules(body_shape, skin_undertone, face_shape)
     mannequin = get_mannequin_image(body_shape, gender)
@@ -116,11 +128,16 @@ async def generate_ensembles(
             "items": items,
         })
 
-    return {
+    result = {
         "ensembles": result_ensembles,
         "style_rules": rules,
         "source": "gemini" if os.environ.get("GEMINI_API_KEY") else "rules",
     }
+
+    # Cache for 30 minutes
+    cache_put("ensembles", cache_params, result)
+
+    return result
 
 
 def _generate_ensemble_plans(

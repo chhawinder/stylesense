@@ -8,6 +8,7 @@ from app.services.llm_service import generate_search_queries_with_ai, generate_s
 from app.services.product_search import (
     get_all_queries, search_products_batch, QUERIES_PER_PAGE,
 )
+from app.services.cache import get as cache_get, put as cache_put
 
 router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
 
@@ -24,6 +25,17 @@ async def generate_recommendations(req: RecommendationRequest, db: Session = Dep
     face_shape = req.face_shape or "oval"
     gender = req.gender or "female"
     occasion = req.occasion or "casual"
+
+    # Check server-side cache for page 0 requests
+    if req.page == 0:
+        reco_cache_key = {
+            "body": body_shape, "skin": skin_undertone, "face": face_shape,
+            "gender": gender, "occasion": occasion,
+            "bmin": req.budget_min, "bmax": req.budget_max,
+        }
+        cached = cache_get("recommendations", reco_cache_key)
+        if cached is not None:
+            return cached
 
     rules = get_style_rules(
         body_shape=body_shape,
@@ -90,7 +102,7 @@ async def generate_recommendations(req: RecommendationRequest, db: Session = Dep
                 break
         p["why"] = f"Picked for your {body_shape.replace('_', ' ')} shape.{color_note}"
 
-    return {
+    result = {
         "products": products,
         "style_rules": rules if req.page == 0 else None,
         "style_tip": style_tip,
@@ -100,6 +112,12 @@ async def generate_recommendations(req: RecommendationRequest, db: Session = Dep
         "has_more": len(remaining) > 0,
         "pending_queries": remaining,
     }
+
+    # Cache page 0 results for 30 minutes
+    if req.page == 0:
+        cache_put("recommendations", reco_cache_key, result)
+
+    return result
 
 
 @router.get("/rules")

@@ -1,9 +1,12 @@
+import asyncio
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.database import engine, Base
 from app.api import auth, profile, recommendations, products, ensembles
 from app.config import settings
+from app.services.cache import stats as cache_stats
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -44,4 +47,26 @@ async def root():
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "cache": cache_stats()}
+
+
+# ── Keep-alive: self-ping every 10 minutes to prevent Render cold starts ──
+async def _keep_alive():
+    """Background task that pings the health endpoint every 10 minutes."""
+    import httpx
+    import os
+    render_url = os.environ.get("RENDER_EXTERNAL_URL", "")
+    if not render_url:
+        return  # Only run on Render
+    while True:
+        await asyncio.sleep(600)  # 10 minutes
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.get(f"{render_url}/api/health", timeout=10)
+        except Exception:
+            pass
+
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(_keep_alive())

@@ -45,40 +45,52 @@ def _call_gemini_for_queries(
     """Call Gemini Flash API to generate specific product search queries."""
     import httpx
 
-    prompt = f"""You are an expert Indian fashion stylist. Generate 8 specific product search queries to find the PERFECT outfit on Amazon India and Flipkart for this person.
+    occasion_label = (occasion or "casual").replace("_", " ").title()
+
+    # Strict occasion-specific guidance so Gemini doesn't mix categories
+    occasion_rules = {
+        "casual": "ONLY generate casual/relaxed items: graphic tshirts, polo tshirts, casual shirts, jeans, joggers, sneakers, casual watches. NO formal shirts, NO blazers, NO office trousers.",
+        "office": "ONLY generate formal/professional items: formal shirts, tailored trousers, pencil skirts, blazers, formal shoes (oxford, pumps, loafers), leather belts, laptop bags. NO tshirts, NO jeans, NO cargo pants, NO kurtas, NO sneakers, NO casual items.",
+        "party": "ONLY generate party/nightout items: sequin tops, satin shirts, bodycon dresses, cocktail dresses, velvet blazers, stilettos, statement jewelry, clutch bags. NO casual tshirts, NO formal office wear.",
+        "wedding": "ONLY generate wedding/bridal items: sherwanis, lehengas, silk sarees, heavy embroidered outfits, bridal jewelry, ethnic footwear. NO casual or office items.",
+        "festive": "ONLY generate festive/ethnic items: embroidered kurtas, silk kurta sets, anarkalis, festive sarees, ethnic jewelry, jutis/mojaris. NO western casual or office wear.",
+        "date_night": "ONLY generate date night items: fitted shirts, slim jeans, elegant dresses, wrap tops, heeled boots, minimal jewelry, cologne/perfume. NO formal office wear, NO heavy ethnic wear.",
+    }
+    occ_key = (occasion or "casual").lower().replace(" ", "_")
+    occ_guidance = occasion_rules.get(occ_key, occasion_rules["casual"])
+
+    prompt = f"""You are an expert Indian fashion stylist. Generate 10 specific product search queries for the "{occasion_label}" occasion on Amazon India / Flipkart.
 
 USER PROFILE:
-- Body Shape: {body_shape}
-- Gender: {gender}
-- Size: {predicted_size} (Indian sizing)
-- Skin Tone: {skin_undertone} undertone, {color_season} season
-- Face Shape: {face_shape}
-- Occasion: {occasion or "casual everyday"}
+- Body Shape: {body_shape}, Gender: {gender}, Size: {predicted_size}
+- Skin: {skin_undertone} undertone, {color_season} season
 - Budget: ₹{budget_min} - ₹{budget_max}
 
-STYLE RULES FOR THIS BODY TYPE:
-- Best silhouettes: {", ".join(rules["best_styles"][:5])}
-- Best colors: {", ".join(rules["best_colors"][:5])}
-- Indian styles: {", ".join(rules["indian_styles"][:3])}
-- Avoid: {", ".join(rules["avoid_styles"][:3])}
+FLATTERING STYLES: {", ".join(rules["best_styles"][:5])}
+BEST COLORS: {", ".join(rules["best_colors"][:5])}
+AVOID: {", ".join(rules["avoid_styles"][:3])}
 
-Generate 8 search queries. Each query should be a realistic search string someone would type on Amazon.in or Flipkart to find a specific product. Include the color, style, and gender in each query.
+CRITICAL OCCASION RULES — "{occasion_label}":
+{occ_guidance}
 
-Return ONLY a JSON array of 8 objects, each with:
-- "category": one of [top, bottom, dress, kurta, saree, blazer, accessory, shoes]
-- "query": the exact search string (e.g. "women olive green A-line kurta cotton")
+RULES:
+1. Every query MUST be appropriate for "{occasion_label}" — DO NOT mix items from other occasions
+2. Each query must be a realistic Amazon.in/Flipkart search string with gender, color, fabric, and style
+3. Include at least 3 tops, 2 bottoms, 2 shoes, 1 accessory — all appropriate for {occasion_label}
+4. Colors MUST come from the person's best colors above
+5. Include the gender ("{gender}") in every search query
 
-Return ONLY the JSON array, no markdown, no explanation."""
+Return ONLY a JSON array of 10 objects:
+[{{"category": "top|bottom|dress|kurta|saree|blazer|shoes|accessory", "query": "search string here"}}]"""
 
     resp = httpx.post(
         f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}",
         json={
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {
-                "temperature": 0.9,
-                "maxOutputTokens": 1500,
+                "temperature": 0.7,
+                "maxOutputTokens": 2000,
                 "responseMimeType": "application/json",
-                "thinkingConfig": {"thinkingBudget": 0},
             },
         },
         timeout=30,

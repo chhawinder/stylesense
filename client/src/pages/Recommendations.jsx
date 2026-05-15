@@ -46,7 +46,7 @@ export default function Recommendations() {
     face_shape: profile?.face_shape,
     gender: profile?.gender || 'female',
     predicted_size: profile?.predicted_size || 'M',
-    occasion: occasion.toLowerCase(),
+    occasion: occasion.toLowerCase().replace(' ', '_'),
     budget_min: budgetMin,
     budget_max: budgetMax,
     page: pageNum,
@@ -146,6 +146,27 @@ export default function Recommendations() {
     if (profile) fetchInitial()
   }, [profile, occasion])
 
+  // Prefetch on hover — silently fetch data before user clicks
+  const prefetchOccasion = useCallback((occ) => {
+    if (!profile) return
+    const cacheKey = `${occ}_${budgetMin}_${budgetMax}`
+    if (cacheRef.current[cacheKey]) return
+    fetch(`${API_BASE}/api/recommendations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...buildRequest(0, []),
+        occasion: occ.toLowerCase().replace(' ', '_'),
+      }),
+    }).then(r => r.json()).then(data => {
+      cacheRef.current[cacheKey] = {
+        products: data.products || [], styleRules: data.style_rules || null,
+        styleTip: data.style_tip || '', source: data.source || 'rules',
+        hasMore: data.has_more || false, pendingQueries: data.pending_queries || [], page: 1,
+      }
+    }).catch(() => {})
+  }, [profile, buildRequest, budgetMin, budgetMax])
+
   // Infinite scroll observer
   useEffect(() => {
     if (!sentinelRef.current) return
@@ -222,6 +243,7 @@ export default function Recommendations() {
             <button
               key={o}
               onClick={() => { setOccasion(o); setActiveCategory('All') }}
+              onMouseEnter={() => prefetchOccasion(o)}
               className={`whitespace-nowrap px-5 py-2 rounded-full font-label text-sm font-semibold transition-all active:scale-95 ${
                 occasion === o
                   ? 'royal-flow text-white shadow-md'

@@ -12,6 +12,8 @@ from urllib.parse import quote_plus
 import httpx
 from bs4 import BeautifulSoup
 
+from app.services.cache import get as cache_get, put as cache_put
+
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -208,7 +210,7 @@ def get_search_queries(gender: str, occasion: str, colors: list, styles: list) -
     Incorporates body-shape-appropriate colors and styles into the queries.
     """
     gender_key = "male" if gender and gender.lower() == "male" else "female"
-    occasion_key = occasion.lower() if occasion else "casual"
+    occasion_key = occasion.lower().replace(" ", "_") if occasion else "casual"
 
     base_queries = OCCASION_QUERIES.get(gender_key, OCCASION_QUERIES["female"])
     queries = base_queries.get(occasion_key, base_queries["casual"])
@@ -413,13 +415,28 @@ async def search_products_batch(
     Search real products for a batch of queries.
     Each query dict has {category, query}.
     Returns real products with images and direct links.
+    Results are cached for 30 minutes to avoid repeated scraping.
     """
-    async with httpx.AsyncClient() as client:
+    # Check cache first
+    cache_key = {"queries": [q["query"] for q in queries], "bmin": budget_min, "bmax": budget_max}
+    cached = cache_get("products", cache_key)
+    if cached is not None:
+        return cached
+
+    # Scrape with connection pooling and concurrency limit
+    connector = httpx.Limits(max_connections=10, max_keepalive_connections=5)
+    async with httpx.AsyncClient(limits=connector) as client:
+        # Use semaphore to limit concurrent requests (avoid getting blocked)
+        sem = asyncio.Semaphore(6)
+
+        async def _limited(coro):
+            async with sem:
+                return await coro
+
         tasks = []
         for q in queries:
-            # 8 from Amazon + 6 from Flipkart per query = ~14 per query
-            tasks.append(_search_and_tag(client, "amazon", q["query"], q["category"], limit=8))
-            tasks.append(_search_and_tag(client, "flipkart", q["query"], q["category"], limit=6))
+            tasks.append(_limited(_search_and_tag(client, "amazon", q["query"], q["category"], limit=6)))
+            tasks.append(_limited(_search_and_tag(client, "flipkart", q["query"], q["category"], limit=4)))
 
         results = await asyncio.gather(*tasks)
 
@@ -433,6 +450,9 @@ async def search_products_batch(
                 if p.get("price") and (p["price"] < budget_min * 0.5 or p["price"] > budget_max * 2):
                     continue
                 all_products.append(p)
+
+    # Cache for 30 minutes
+    cache_put("products", cache_key, all_products)
 
     return all_products
 

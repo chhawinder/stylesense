@@ -453,7 +453,7 @@ export default function Scan() {
       {/* Camera feed */}
       <div className="absolute inset-0 z-0">
         <video ref={videoRef} className="w-full h-full object-cover" playsInline muted style={{ transform: 'scaleX(-1)' }} />
-        <div className="absolute inset-0 bg-gradient-to-b from-on-surface/60 via-transparent to-on-surface/80" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/60" />
       </div>
 
       {/* Height/Gender setup overlay */}
@@ -518,65 +518,115 @@ export default function Scan() {
         </button>
       </header>
 
-      {/* Silhouette overlay with measurement guides (front pose) */}
+      {/* Dynamic measurement overlay (front pose) — lines follow actual body landmarks */}
       {phase === 'scanning' && currentStep === 0 && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-          {/* Full-height guide so user steps back far enough */}
-          <div className="relative w-[55%] max-w-[320px] h-[85%]">
-            {/* Outer body outline */}
-            <div className="absolute inset-0 border-2 border-dashed border-secondary-fixed/50 rounded-[40%_40%_5%_5%/15%_15%_3%_3%]" />
+        <div className="absolute inset-0 z-10 pointer-events-none">
+          {poseLandmarks ? (() => {
+            // MediaPipe landmark indices
+            const lShoulder = poseLandmarks[11]
+            const rShoulder = poseLandmarks[12]
+            const lHip = poseLandmarks[23]
+            const rHip = poseLandmarks[24]
 
-            {/* Corner brackets */}
-            <div className="absolute -top-1 -left-1 w-6 h-6 border-t-2 border-l-2 border-secondary-fixed" />
-            <div className="absolute -top-1 -right-1 w-6 h-6 border-t-2 border-r-2 border-secondary-fixed" />
-            <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-2 border-l-2 border-secondary-fixed" />
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-2 border-r-2 border-secondary-fixed" />
+            // All landmarks visible enough?
+            const visible = [lShoulder, rShoulder, lHip, rHip].every(l => (l.visibility ?? 0) > 0.5)
+            if (!visible) return null
 
-            {/* Head circle */}
-            <div className="absolute top-[2%] left-1/2 -translate-x-1/2 w-[30%] aspect-[3/4] border-2 border-dashed border-secondary-fixed/30 rounded-full" />
+            // Compute object-cover offset: video is scaled to cover container, so
+            // we need to map normalized landmark coords → actual screen position.
+            const video = videoRef.current
+            const vw = video?.videoWidth || 1280
+            const vh = video?.videoHeight || 720
+            const cw = video?.clientWidth || window.innerWidth
+            const ch = video?.clientHeight || window.innerHeight
+            const videoRatio = vw / vh
+            const containerRatio = cw / ch
+            let scaleX, scaleY, offsetX, offsetY
+            if (videoRatio > containerRatio) {
+              // Video is wider — cropped on left/right
+              scaleY = ch
+              scaleX = ch * videoRatio
+              offsetX = (scaleX - cw) / 2
+              offsetY = 0
+            } else {
+              // Video is taller — cropped on top/bottom
+              scaleX = cw
+              scaleY = cw / videoRatio
+              offsetX = 0
+              offsetY = (scaleY - ch) / 2
+            }
+            // Convert normalized landmark coord → screen pixel → screen percentage
+            const toScreenX = (nx) => ((nx * scaleX - offsetX) / cw) * 100
+            const toScreenY = (ny) => ((ny * scaleY - offsetY) / ch) * 100
 
-            {/* ── Measurement reference lines ── */}
-            {/* Shoulder line — cyan  ~28% from top (top of torso) */}
-            <div className="absolute top-[22%] -left-4 -right-4 flex items-center">
-              <div className="flex-1 h-[1.5px] bg-cyan-400/60" />
-              <span className="px-2.5 py-0.5 text-[10px] font-bold text-cyan-300 bg-black/50 rounded-full whitespace-nowrap">SHOULDERS</span>
-              <div className="flex-1 h-[1.5px] bg-cyan-400/60" />
-            </div>
-            {/* Chest line — green  ~35% */}
-            <div className="absolute top-[33%] -left-2 -right-2 flex items-center">
-              <div className="flex-1 h-[1.5px] bg-green-400/60" />
-              <span className="px-2.5 py-0.5 text-[10px] font-bold text-green-300 bg-black/50 rounded-full whitespace-nowrap">CHEST</span>
-              <div className="flex-1 h-[1.5px] bg-green-400/60" />
-            </div>
-            {/* Waist line — yellow  ~46% (natural waist, above navel) */}
-            <div className="absolute top-[46%] left-[5%] right-[5%] flex items-center">
-              <div className="flex-1 h-[1.5px] bg-yellow-400/60" />
-              <span className="px-2.5 py-0.5 text-[10px] font-bold text-yellow-300 bg-black/50 rounded-full whitespace-nowrap">WAIST</span>
-              <div className="flex-1 h-[1.5px] bg-yellow-400/60" />
-            </div>
-            {/* Hip line — pink  ~58% (widest part of hips) */}
-            <div className="absolute top-[58%] -left-1 -right-1 flex items-center">
-              <div className="flex-1 h-[1.5px] bg-pink-400/60" />
-              <span className="px-2.5 py-0.5 text-[10px] font-bold text-pink-300 bg-black/50 rounded-full whitespace-nowrap">HIP</span>
-              <div className="flex-1 h-[1.5px] bg-pink-400/60" />
-            </div>
+            // Video is mirrored (scaleX(-1)), so flip x: use (1 - x)
+            const shoulderY = (toScreenY(lShoulder.y) + toScreenY(rShoulder.y)) / 2
+            const shoulderLX = toScreenX(1 - lShoulder.x)
+            const shoulderRX = toScreenX(1 - rShoulder.x)
+            const hipY = (toScreenY(lHip.y) + toScreenY(rHip.y)) / 2
+            const hipLX = toScreenX(1 - lHip.x)
+            const hipRX = toScreenX(1 - rHip.x)
 
-            {/* Leg region hint */}
-            <div className="absolute bottom-[3%] left-1/2 -translate-x-1/2 flex gap-[18%]">
-              <div className="w-[22%] h-[28%] border-2 border-dashed border-secondary-fixed/25 rounded-full" style={{ minWidth: 28, minHeight: 100 }} />
-              <div className="w-[22%] h-[28%] border-2 border-dashed border-secondary-fixed/25 rounded-full" style={{ minWidth: 28, minHeight: 100 }} />
-            </div>
+            // Interpolate chest (30% down from shoulders to hips) and waist (55% down)
+            const chestY = shoulderY + (hipY - shoulderY) * 0.30
+            const waistY = shoulderY + (hipY - shoulderY) * 0.55
 
-            {/* "Step back" nudge if no pose detected */}
-            {!poseDetected && (
-              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-red-500/80 backdrop-blur-sm px-4 py-1.5 rounded-full">
-                <p className="text-[11px] font-bold text-white whitespace-nowrap flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-sm">zoom_out_map</span>
-                  Step back — full body must be visible
-                </p>
+            // Horizontal extents — expand beyond shoulder/hip points for line width
+            const bodyLeft = Math.min(shoulderLX, shoulderRX, hipLX, hipRX)
+            const bodyRight = Math.max(shoulderLX, shoulderRX, hipLX, hipRX)
+            const pad = (bodyRight - bodyLeft) * 0.15
+            const lineLeft = `${Math.max(0, bodyLeft - pad)}%`
+            const lineRight = `${Math.max(0, 100 - bodyRight - pad)}%`
+
+            const lines = [
+              { y: shoulderY, color: '#22d3ee', label: 'SHOULDERS', lx: shoulderLX, rx: shoulderRX },
+              { y: chestY, color: '#4ade80', label: 'CHEST' },
+              { y: waistY, color: '#facc15', label: 'WAIST' },
+              { y: hipY, color: '#f472b6', label: 'HIP', lx: hipLX, rx: hipRX },
+            ]
+
+            return lines.map(({ y, color, label, lx, rx }) => (
+              <div key={label} className="absolute flex items-center"
+                style={{
+                  top: `${y}%`,
+                  left: lx != null ? `${Math.min(lx, rx) - pad}%` : lineLeft,
+                  right: lx != null ? `${100 - Math.max(lx, rx) - pad}%` : lineRight,
+                  transform: 'translateY(-50%)',
+                }}>
+                <div className="flex-1 h-[2px]" style={{ backgroundColor: `${color}b3` }} />
+                <span className="mx-1 px-2 py-0.5 text-[10px] font-bold rounded-full whitespace-nowrap"
+                  style={{ color, backgroundColor: 'rgba(0,0,0,0.6)' }}>
+                  {label}
+                </span>
+                <div className="flex-1 h-[2px]" style={{ backgroundColor: `${color}b3` }} />
+                {/* Endpoint dots for shoulder/hip to show exact landmark positions */}
+                {lx != null && (
+                  <>
+                    <div className="absolute left-0 w-2.5 h-2.5 rounded-full -translate-x-1/2" style={{ backgroundColor: color }} />
+                    <div className="absolute right-0 w-2.5 h-2.5 rounded-full translate-x-1/2" style={{ backgroundColor: color }} />
+                  </>
+                )}
               </div>
-            )}
-          </div>
+            ))
+          })() : (
+            /* No pose detected — show static silhouette guide */
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="relative w-[55%] max-w-[320px] h-[85%]">
+                <div className="absolute inset-0 border-2 border-dashed border-secondary-fixed/50 rounded-[40%_40%_5%_5%/15%_15%_3%_3%]" />
+                <div className="absolute -top-1 -left-1 w-6 h-6 border-t-2 border-l-2 border-secondary-fixed" />
+                <div className="absolute -top-1 -right-1 w-6 h-6 border-t-2 border-r-2 border-secondary-fixed" />
+                <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-2 border-l-2 border-secondary-fixed" />
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-2 border-r-2 border-secondary-fixed" />
+                <div className="absolute top-[2%] left-1/2 -translate-x-1/2 w-[30%] aspect-[3/4] border-2 border-dashed border-secondary-fixed/30 rounded-full" />
+                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-red-500/80 backdrop-blur-sm px-4 py-1.5 rounded-full">
+                  <p className="text-[11px] font-bold text-white whitespace-nowrap flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-sm">zoom_out_map</span>
+                    Step back — full body must be visible
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -619,27 +669,24 @@ export default function Scan() {
         </div>
       )}
 
-      {/* ── Live Measurements HUD ── */}
+      {/* ── Live Measurements HUD — compact bottom-left ── */}
       {phase === 'scanning' && liveMeasurements && (
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-44">
-          <div className="bg-black/50 backdrop-blur-xl rounded-2xl border border-white/10 p-4">
-            <h4 className="text-[10px] font-semibold text-white/50 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+        <div className="absolute left-3 bottom-44 z-20">
+          <div className="bg-black/50 backdrop-blur-xl rounded-xl border border-white/10 px-3 py-2.5">
+            <div className="flex items-center gap-1.5 mb-2">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              Live Analysis
-            </h4>
-            <div className="space-y-2">
+              <span className="text-[9px] font-semibold text-white/50 uppercase tracking-widest">Live</span>
+            </div>
+            <div className="space-y-1">
               {(LIVE_FIELDS[currentStep] || []).map((key) => (
-                <div key={key} className="flex justify-between items-center">
-                  <span className="text-[11px] text-white/60">{LABELS[key]}</span>
-                  <span className="text-xs font-semibold text-white font-mono capitalize">
+                <div key={key} className="flex justify-between items-center gap-3">
+                  <span className="text-[10px] text-white/50">{LABELS[key]}</span>
+                  <span className="text-[11px] font-semibold text-white font-mono capitalize">
                     {formatValue(key, liveMeasurements[key])}
                   </span>
                 </div>
               ))}
             </div>
-            {currentStep === 2 && (
-              <p className="text-[10px] text-white/40 mt-3 italic">Skin tone captured on photo</p>
-            )}
           </div>
         </div>
       )}
@@ -665,85 +712,68 @@ export default function Scan() {
         </div>
       )}
 
-      {/* Instruction card */}
+      {/* Instruction card — compact */}
       {phase === 'scanning' && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-80px)] max-w-md">
-          <div className={`backdrop-blur-xl border border-white/10 p-4 rounded-xl text-center shadow-2xl ${countdown !== null ? 'bg-secondary/30' : 'bg-on-surface/30'}`}>
-            <p className="font-headline text-xl font-semibold text-white mb-1">
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-48px)] max-w-sm">
+          <div className={`backdrop-blur-xl border border-white/10 px-4 py-3 rounded-2xl text-center ${countdown !== null ? 'bg-secondary/30' : 'bg-black/40'}`}>
+            <p className="font-headline text-lg font-semibold text-white">
               {countdown !== null ? `Capturing in ${countdown}s...` : `Step ${currentStep + 1}: ${STEPS[currentStep]}`}
             </p>
-            <p className="text-white/80 text-sm">
-              {countdown !== null ? 'Get into position!' : STEP_INSTRUCTIONS[currentStep]}
-            </p>
+            {countdown === null && (
+              <p className="text-white/70 text-xs mt-1">
+                {STEP_INSTRUCTIONS[currentStep]}
+              </p>
+            )}
             {countdown === null && STEP_TIPS[currentStep] && (
-              <div className="mt-2 pt-2 border-t border-white/10 flex flex-col gap-0.5">
-                <p className="text-[11px] text-cyan-300 font-semibold">
-                  <span className="material-symbols-outlined text-[12px] align-middle mr-1">straighten</span>
-                  Measuring: {STEP_TIPS[currentStep][0]}
-                </p>
-                <p className="text-[11px] text-white/50">
-                  <span className="material-symbols-outlined text-[12px] align-middle mr-1">tips_and_updates</span>
-                  {STEP_TIPS[currentStep][1]}
-                </p>
-              </div>
+              <p className="text-cyan-300 text-[11px] font-semibold mt-1.5">
+                Measuring: {STEP_TIPS[currentStep][0]}
+              </p>
             )}
           </div>
         </div>
       )}
 
-      {/* Bottom controls */}
+      {/* Bottom controls — clean layout */}
       {phase === 'scanning' && (
-        <div className="absolute bottom-0 left-0 w-full z-30 px-5 pb-12 flex flex-col items-center gap-6">
-          {/* Step indicator */}
-          <div className="flex items-center gap-4 bg-on-surface/40 backdrop-blur-md px-6 py-3 rounded-full border border-white/5">
+        <div className="absolute bottom-0 left-0 w-full z-30 px-5 pb-10 flex flex-col items-center gap-5">
+          {/* Step dots */}
+          <div className="flex items-center gap-3 bg-black/40 backdrop-blur-md px-5 py-2.5 rounded-full">
             {STEPS.map((step, i) => (
               <div key={step} className="flex items-center gap-2">
-                {i > 0 && <div className="w-6 h-px bg-white/20" />}
-                <div className={`flex items-center gap-2 ${i > currentStep ? 'opacity-50' : ''}`}>
-                  <div className={`w-2 h-2 rounded-full ${
-                    i < currentStep ? 'bg-green-400' : i === currentStep ? 'bg-secondary shadow-[0_0_8px_#FDCD74]' : 'bg-white/40'
-                  }`} />
-                  <span className="font-label text-xs font-semibold text-white">{step}</span>
-                </div>
+                {i > 0 && <div className="w-5 h-px bg-white/20" />}
+                <div className={`w-2.5 h-2.5 rounded-full transition-all ${
+                  i < currentStep ? 'bg-green-400' : i === currentStep ? 'bg-secondary shadow-[0_0_8px_#FDCD74] scale-125' : 'bg-white/30'
+                }`} />
+                <span className={`font-label text-[11px] font-semibold text-white ${i > currentStep ? 'opacity-40' : ''}`}>{step}</span>
               </div>
             ))}
           </div>
 
-          {/* Capture row */}
-          <div className="flex items-center justify-around w-full max-w-sm">
-            <div className="w-12 h-12" />
-            <button onClick={handleCapturePress} disabled={mpLoading || countdown !== null}
-              className="relative w-20 h-20 flex items-center justify-center group active:scale-90 transition-transform disabled:opacity-50">
-              <div className="absolute inset-0 rounded-full bg-white/20 scale-110" />
-              <div className={`absolute inset-0 rounded-full shadow-[0_0_30px_rgba(108,60,225,0.4)] ${countdown !== null ? 'bg-secondary-container' : 'royal-flow'}`} />
-              <div className="w-16 h-16 rounded-full border-4 border-white flex items-center justify-center">
-                {countdown !== null ? <span className="text-white text-2xl font-bold">{countdown || '...'}</span> : null}
-              </div>
-            </button>
-            <button onClick={flipCamera}
-              className="w-12 h-12 flex items-center justify-center bg-on-surface/20 backdrop-blur-md rounded-full text-white active:rotate-180 transition-transform">
-              <span className="material-symbols-outlined">flip_camera_ios</span>
-            </button>
-          </div>
+          {/* Capture button */}
+          <button onClick={handleCapturePress} disabled={mpLoading || countdown !== null}
+            className="relative w-[72px] h-[72px] flex items-center justify-center active:scale-90 transition-transform disabled:opacity-50">
+            <div className="absolute inset-0 rounded-full bg-white/15 scale-110" />
+            <div className={`absolute inset-0 rounded-full ${countdown !== null ? 'bg-secondary-container' : 'royal-flow'}`} />
+            <div className="w-14 h-14 rounded-full border-[3px] border-white flex items-center justify-center">
+              {countdown !== null && <span className="text-white text-xl font-bold">{countdown || '...'}</span>}
+            </div>
+          </button>
 
-          {/* Privacy */}
-          <div className="flex items-center gap-2 opacity-90">
-            <span className="material-symbols-outlined text-secondary-fixed text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>lock</span>
-            <p className="font-label text-xs font-semibold text-white tracking-wide">
-              Your images are analyzed on-device and never uploaded
-            </p>
-          </div>
+          {/* Privacy — subtle */}
+          <p className="font-label text-[10px] text-white/50 flex items-center gap-1">
+            <span className="material-symbols-outlined text-xs" style={{ fontVariationSettings: "'FILL' 1" }}>lock</span>
+            Analyzed on-device • never uploaded
+          </p>
         </div>
       )}
 
-      {/* Side tools */}
+      {/* Flip camera — right side */}
       {phase === 'scanning' && (
-        <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-20">
-          {['straighten', 'accessibility_new', 'shutter_speed'].map((icon) => (
-            <div key={icon} className="w-12 h-12 bg-on-surface/30 backdrop-blur-xl border border-white/10 rounded-xl flex items-center justify-center">
-              <span className="material-symbols-outlined text-white">{icon}</span>
-            </div>
-          ))}
+        <div className="absolute right-5 top-1/2 -translate-y-1/2 z-20">
+          <button onClick={flipCamera}
+            className="w-11 h-11 bg-black/40 backdrop-blur-md border border-white/10 rounded-full flex items-center justify-center text-white active:scale-90 transition-transform">
+            <span className="material-symbols-outlined text-xl">flip_camera_ios</span>
+          </button>
         </div>
       )}
     </div>

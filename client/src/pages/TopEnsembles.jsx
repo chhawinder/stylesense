@@ -18,6 +18,29 @@ const CATEGORY_ICONS = {
   saree: 'apparel', bottom: 'stock_media', shoes: 'steps', accessory: 'diamond',
 }
 
+// Persistent localStorage cache for ensembles
+const ENSEMBLE_CACHE_KEY = 'stylesense_ensembles'
+const ENSEMBLE_CACHE_TTL = 30 * 60 * 1000 // 30 minutes
+
+function loadEnsembleCache() {
+  try {
+    const raw = localStorage.getItem(ENSEMBLE_CACHE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    // Prune expired entries
+    const now = Date.now()
+    const valid = {}
+    for (const [k, v] of Object.entries(parsed)) {
+      if (v.ts && now - v.ts < ENSEMBLE_CACHE_TTL) valid[k] = v
+    }
+    return valid
+  } catch { return {} }
+}
+
+function saveEnsembleCache(cache) {
+  try { localStorage.setItem(ENSEMBLE_CACHE_KEY, JSON.stringify(cache)) } catch {}
+}
+
 export default function TopEnsembles() {
   const { bodyProfile, scanResult, loadProfile } = useProfileStore()
   const { user } = useAuthStore()
@@ -28,19 +51,33 @@ export default function TopEnsembles() {
   const [error, setError] = useState(null)
   const [occasion, setOccasion] = useState('Casual')
   const [expandedEnsemble, setExpandedEnsemble] = useState(0)
-  const cacheRef = useRef({})
+  const cacheRef = useRef(loadEnsembleCache())
 
   useEffect(() => {
     if (!profile) loadProfile()
   }, [])
 
-  const fetchEnsembles = useCallback(async () => {
+  const buildPayload = useCallback((key) => ({
+    body_shape: profile?.body_shape,
+    skin_undertone: profile?.skin_undertone,
+    color_season: profile?.color_season,
+    face_shape: profile?.face_shape,
+    gender: profile?.gender || 'female',
+    predicted_size: profile?.predicted_size || 'M',
+    kibbe_type: profile?.kibbe_type,
+    height_cm: profile?.height_cm,
+    occasion: key,
+    budget_min: 500,
+    budget_max: 15000,
+  }), [profile])
+
+  const fetchEnsembles = useCallback(async (forceRefresh = false) => {
     if (!profile) return
     const key = occasion.toLowerCase().replace(' ', '_')
 
-    // Serve from cache instantly
-    if (cacheRef.current[key]) {
-      setEnsembles(cacheRef.current[key])
+    // Serve from persistent cache (unless force refresh)
+    if (!forceRefresh && cacheRef.current[key]?.data) {
+      setEnsembles(cacheRef.current[key].data)
       setExpandedEnsemble(0)
       return
     }
@@ -48,32 +85,32 @@ export default function TopEnsembles() {
     setLoading(true)
     setError(null)
     try {
-      const data = await api.getEnsembles({
-        body_shape: profile.body_shape,
-        skin_undertone: profile.skin_undertone,
-        color_season: profile.color_season,
-        face_shape: profile.face_shape,
-        gender: profile.gender || 'female',
-        predicted_size: profile.predicted_size || 'M',
-        kibbe_type: profile.kibbe_type,
-        height_cm: profile.height_cm,
-        occasion: key,
-        budget_min: 500,
-        budget_max: 15000,
-      })
+      const data = await api.getEnsembles(buildPayload(key))
       const result = data.ensembles || []
       setEnsembles(result)
       setExpandedEnsemble(0)
-      cacheRef.current[key] = result
+      cacheRef.current[key] = { data: result, ts: Date.now() }
+      saveEnsembleCache(cacheRef.current)
     } catch (err) {
       setError(err.message)
     }
     setLoading(false)
-  }, [profile, occasion])
+  }, [profile, occasion, buildPayload])
 
   useEffect(() => {
     if (profile) fetchEnsembles()
   }, [profile, occasion])
+
+  // Prefetch on hover — silently loads data before user clicks
+  const prefetch = useCallback((occ) => {
+    if (!profile) return
+    const key = occ.toLowerCase().replace(' ', '_')
+    if (cacheRef.current[key]?.data) return
+    api.getEnsembles(buildPayload(key)).then((data) => {
+      cacheRef.current[key] = { data: data.ensembles || [], ts: Date.now() }
+      saveEnsembleCache(cacheRef.current)
+    }).catch(() => {})
+  }, [profile, buildPayload])
 
   const seasonColors = SEASON_COLORS[profile?.color_season] || SEASON_COLORS.autumn
   const mannequinSrc = `/mannequins/${(profile?.body_shape || 'rectangle').replace('_', '-')}-${(profile?.gender || 'female')[0]}.svg`
@@ -99,9 +136,18 @@ export default function TopEnsembles() {
         <p className="text-primary font-label text-sm tracking-widest uppercase mb-2">
           Curated for {user?.name || 'You'}
         </p>
-        <h2 className="font-display text-3xl md:text-5xl font-bold text-on-surface mb-3">
-          Your Top Ensembles
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-3xl md:text-5xl font-bold text-on-surface mb-3">
+            Your Top Ensembles
+          </h2>
+          {ensembles.length > 0 && !loading && (
+            <button onClick={() => fetchEnsembles(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary transition-colors font-label text-xs font-semibold">
+              <span className="material-symbols-outlined text-base">refresh</span>
+              New Looks
+            </button>
+          )}
+        </div>
         <div className="h-1 w-24 royal-flow rounded-full" />
       </header>
 
@@ -109,6 +155,7 @@ export default function TopEnsembles() {
       <div className="flex gap-2 overflow-x-auto hide-scrollbar mb-8 -mx-5 px-5">
         {OCCASIONS.map((occ) => (
           <button key={occ} onClick={() => setOccasion(occ)}
+            onMouseEnter={() => prefetch(occ)}
             className={`px-5 py-2 rounded-full font-label text-sm font-semibold whitespace-nowrap transition-all ${
               occasion === occ
                 ? 'royal-flow text-on-primary shadow-md'
